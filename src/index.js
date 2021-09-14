@@ -21,7 +21,7 @@ function verifyUserExists(req, res, next) {
 }
 
 
-app.post("/users/create", (req, res) => {
+app.post("/users", (req, res) => {
   const { name, username } = req.body;
 
   const userAlreadyExists = users.some((user) => user.username === username);
@@ -30,26 +30,28 @@ app.post("/users/create", (req, res) => {
     return res.status(400).json({ error: "User already exists!" });
   }
 
-  users.push({
+  const user = {
     id: uuidv4(),
     name,
     username,
     todos: []
-  });
+  }
 
-  return res.status(201).send();
+  users.push(user);
+
+  return res.status(201).json(user);
 });
 
-app.get("/users/list", (req,res)=>{
-  return res.json(users);
-});
+// app.get("/users", (req,res)=>{
+//   return res.json(users);
+// });
 
-app.get("/todos", verifyUserExists, (req, res) => {
+app.get("/todos", verifyUserExists, (req, res) => { 
   const { todos } = req.user;
   return res.json(todos);
 });
 
-app.post("/todos/create", verifyUserExists, (req, res) => {
+app.post("/todos", verifyUserExists, (req, res) => {
   const { todos } = req.user;
   const { title, deadline } = req.body;
 
@@ -74,11 +76,46 @@ app.put("/todos/:id", verifyUserExists, (req,res)=>{
 
   const todo = todos.find((todo)=>todo.id === id);
 
+  if(!todo){
+    return res.status(400).json({error:"Task not found!"});
+  }
+
   todo.title = title;
   todo.deadline = new Date(deadline);
 
   return res.status(201).json(todo);
 });
 
+app.patch("/todos/:id/done", verifyUserExists, (req,res)=>{
+  const {todos} = req.user;
+  const {id} = req.params;
+
+  const todo = todos.find((todo)=>todo.id === id);
+  
+  if(!todo){
+    return res.status(400).json({error:"Task not found!"});
+  }
+
+  todo.done = true;
+
+  return res.status(201).json(todo);
+});
+
+
+app.delete("/todos/:id", verifyUserExists, (req,res)=>{
+  const {todos} = req.user;
+  const {id} = req.params;
+
+  const todo = todos.find((todo)=>todo.id ===id)
+
+  if(!todo){
+    return res.status(400).json({error:"Task not found!"});
+  }
+
+  todos.splice(todo, 1);
+
+  return res.json(todos);
+
+});
 
 app.listen(3000);
