@@ -77,7 +77,7 @@ app.put("/todos/:id", verifyUserExists, (req,res)=>{
   const todo = todos.find((todo)=>todo.id === id);
 
   if(!todo){
-    return res.status(400).json({error:"Task not found!"});
+    return res.status(404).json({error:"Task not found!"});
   }
 
   todo.title = title;
@@ -93,7 +93,7 @@ app.patch("/todos/:id/done", verifyUserExists, (req,res)=>{
   const todo = todos.find((todo)=>todo.id === id);
   
   if(!todo){
-    return res.status(400).json({error:"Task not found!"});
+    return res.status(404).json({error:"Task not found!"});
   }
 
   todo.done = true;
@@ -109,12 +109,12 @@ app.delete("/todos/:id", verifyUserExists, (req,res)=>{
   const todo = todos.find((todo)=>todo.id ===id)
 
   if(!todo){
-    return res.status(400).json({error:"Task not found!"});
+    return res.status(404).json({error:"Task not found!"});
   }
 
   todos.splice(todo, 1);
 
-  return res.json(todos);
+  return res.status(204).send();
 
 });
 
