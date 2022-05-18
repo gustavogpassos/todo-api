@@ -3,13 +3,17 @@ const { v4: uuidv4 } = require("uuid");
 
 const app = express();
 
+const mongoose = require("./utils/database")(app);
+const User = require('./models/User');
+
 const users = [];
 
 app.use(express.json());
 
-function verifyUserExists(req, res, next) {
+async function verifyUserExists(req, res, next) {
   const { username } = req.headers;
-  const user = users.find((user) => user.username === username);
+
+  const user = await User.findOne({ username: username });
 
   if (!user) {
     return res.status(400).json({ error: "User not found!" });
@@ -21,40 +25,47 @@ function verifyUserExists(req, res, next) {
 }
 
 
-app.post("/users", (req, res) => {
-  const { name, username } = req.body;
+app.post("/users", async (req, res) => {
+  const { name, username, email } = req.body;
 
-  const userAlreadyExists = users.some((user) => user.username === username);
+  const user = await User.findOne({ username: username });
 
-  if (userAlreadyExists) {
+  if (user) {
     return res.status(400).json({ error: "User already exists!" });
   }
 
-  const user = {
+  const newUser = {
     id: uuidv4(),
     name,
     username,
+    email,
     todos: []
   }
 
-  users.push(user);
+  //criando registro no mongodb
+  try {
+    await User.create(newUser);
+    return res.status(201).json({ message: "resource created", newUser });
 
-  return res.status(201).json(user);
+  } catch (err) {
+    return res.status(500).json({ message: err });
+  }
 });
 
 // app.get("/users", (req,res)=>{
 //   return res.json(users);
 // });
 
-app.get("/todos", verifyUserExists, (req, res) => { 
+app.get("/todos", verifyUserExists, (req, res) => {
   const { todos } = req.user;
   return res.json(todos);
 });
 
-app.post("/todos", verifyUserExists, (req, res) => {
-  const { todos } = req.user;
-  const { title, deadline } = req.body;
+app.post("/todos", verifyUserExists, async (req, res) => {
+  const { _id, todos } = req.user;
 
+  const { title, deadline } = req.body;
+  
   const todo = {
     id: uuidv4(),
     title,
@@ -65,19 +76,21 @@ app.post("/todos", verifyUserExists, (req, res) => {
 
   todos.push(todo);
 
+  await User.updateOne({_id: _id}, {todos: todos});
+
   return res.status(201).send(todo);
 
 });
 
-app.put("/todos/:id", verifyUserExists, (req,res)=>{
-  const {title, deadline} = req.body;
-  const {id} = req.params;
-  const {todos} = req.user;
+app.put("/todos/:id", verifyUserExists, (req, res) => {
+  const { title, deadline } = req.body;
+  const { id } = req.params;
+  const { todos } = req.user;
 
-  const todo = todos.find((todo)=>todo.id === id);
+  const todo = todos.find((todo) => todo.id === id);
 
-  if(!todo){
-    return res.status(404).json({error:"Task not found!"});
+  if (!todo) {
+    return res.status(404).json({ error: "Task not found!" });
   }
 
   todo.title = title;
@@ -86,14 +99,14 @@ app.put("/todos/:id", verifyUserExists, (req,res)=>{
   return res.status(201).json(todo);
 });
 
-app.patch("/todos/:id/done", verifyUserExists, (req,res)=>{
-  const {todos} = req.user;
-  const {id} = req.params;
+app.patch("/todos/:id/done", verifyUserExists, (req, res) => {
+  const { todos } = req.user;
+  const { id } = req.params;
 
-  const todo = todos.find((todo)=>todo.id === id);
-  
-  if(!todo){
-    return res.status(404).json({error:"Task not found!"});
+  const todo = todos.find((todo) => todo.id === id);
+
+  if (!todo) {
+    return res.status(404).json({ error: "Task not found!" });
   }
 
   todo.done = true;
@@ -102,14 +115,14 @@ app.patch("/todos/:id/done", verifyUserExists, (req,res)=>{
 });
 
 
-app.delete("/todos/:id", verifyUserExists, (req,res)=>{
-  const {todos} = req.user;
-  const {id} = req.params;
+app.delete("/todos/:id", verifyUserExists, (req, res) => {
+  const { todos } = req.user;
+  const { id } = req.params;
 
-  const todo = todos.find((todo)=>todo.id ===id)
+  const todo = todos.find((todo) => todo.id === id)
 
-  if(!todo){
-    return res.status(404).json({error:"Task not found!"});
+  if (!todo) {
+    return res.status(404).json({ error: "Task not found!" });
   }
 
   todos.splice(todo, 1);
@@ -117,5 +130,3 @@ app.delete("/todos/:id", verifyUserExists, (req,res)=>{
   return res.status(204).send();
 
 });
-
-app.listen(3000);
