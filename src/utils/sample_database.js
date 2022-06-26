@@ -1,4 +1,4 @@
-//remover o sample_ do nome do arquivo
+//save this file as database.js
 
 module.exports = function (app) {
     const mongoose = require("mongoose");

@@ -41,8 +41,7 @@ app.post("/users", async (req, res) => {
     email,
     todos: []
   }
-
-  //criando registro no mongodb
+  //criando registro de usuario no mongodb
   try {
     await User.create(newUser);
     return res.status(201).json({ message: "resource created", newUser });
@@ -56,16 +55,23 @@ app.post("/users", async (req, res) => {
 //   return res.json(users);
 // });
 
+
+/**
+ * obter os to-dos do usuario
+ */
 app.get("/todos", verifyUserExists, (req, res) => {
   const { todos } = req.user;
   return res.json(todos);
 });
 
+/**
+ * criar um novo to-do
+ */
 app.post("/todos", verifyUserExists, async (req, res) => {
   const { _id, todos } = req.user;
 
   const { title, deadline } = req.body;
-  
+
   const todo = {
     id: uuidv4(),
     title,
@@ -76,31 +82,40 @@ app.post("/todos", verifyUserExists, async (req, res) => {
 
   todos.push(todo);
 
-  await User.updateOne({_id: _id}, {todos: todos});
+  await User.updateOne({ _id: _id }, { todos: todos });
 
   return res.status(201).send(todo);
 
 });
 
-app.put("/todos/:id", verifyUserExists, (req, res) => {
+/**
+ * alterar o titulo ou deadline do todo
+ */
+app.put("/todos/:id", verifyUserExists, async (req, res) => {
   const { title, deadline } = req.body;
   const { id } = req.params;
-  const { todos } = req.user;
+  const { _id, todos } = req.user;
 
   const todo = todos.find((todo) => todo.id === id);
 
   if (!todo) {
     return res.status(404).json({ error: "Task not found!" });
   }
+  if (title.length > 0) {
+    todo.title = title;
+  }
+  if (todo.deadline != new Date(deadline)) {
+    todo.deadline = new Date(deadline);
+    todo.done = false;
+  }
 
-  todo.title = title;
-  todo.deadline = new Date(deadline);
+  await User.updateOne({ _id: _id }, { todos: todos });
 
   return res.status(201).json(todo);
 });
 
-app.patch("/todos/:id/done", verifyUserExists, (req, res) => {
-  const { todos } = req.user;
+app.patch("/todos/:id/done", verifyUserExists, async (req, res) => {
+  const { _id, todos } = req.user;
   const { id } = req.params;
 
   const todo = todos.find((todo) => todo.id === id);
@@ -111,12 +126,16 @@ app.patch("/todos/:id/done", verifyUserExists, (req, res) => {
 
   todo.done = true;
 
+  await User.updateOne({ _id: _id }, { todos: todos });
+
   return res.status(201).json(todo);
 });
 
-
-app.delete("/todos/:id", verifyUserExists, (req, res) => {
-  const { todos } = req.user;
+/**
+ * exclui os dados de um todo
+ */
+app.delete("/todos/:id", verifyUserExists, async (req, res) => {
+  const { _id, todos } = req.user;
   const { id } = req.params;
 
   const todo = todos.find((todo) => todo.id === id)
@@ -126,6 +145,8 @@ app.delete("/todos/:id", verifyUserExists, (req, res) => {
   }
 
   todos.splice(todo, 1);
+
+  await User.updateOne({ _id: _id }, { todos: todos });
 
   return res.status(204).send();
 
